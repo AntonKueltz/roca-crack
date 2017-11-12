@@ -2,12 +2,14 @@ from functools import reduce
 from math import log
 from operator import mul
 from os import remove
+from sys import version_info
 from subprocess import check_output
 
 from Crypto.Util.number import getRandomNBitInteger, isPrime
 from Crypto.PublicKey import RSA
 
-e = 0x10001L  # = 65537 (hardcoded public exponent, low hamming weight = fast)
+# 0x10001 = 65537 (hardcoded public exponent, low hamming weight = fast)
+e = 0x10001 if version_info >= (3, 0) else long(0x10001)  # there are no long literals in python3
 
 
 def _prime_count_for_keysize(keysize):
