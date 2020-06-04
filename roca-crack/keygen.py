@@ -2,14 +2,13 @@ from functools import reduce
 from math import log
 from operator import mul
 from os import remove
-from sys import version_info
 from subprocess import check_output
 
 from Crypto.Util.number import getRandomNBitInteger, isPrime
 from Crypto.PublicKey import RSA
 
 # 0x10001 = 65537 (hardcoded public exponent, low hamming weight = fast)
-e = 0x10001 if version_info >= (3, 0) else long(0x10001)  # there are no long literals in python3
+e = 0x10001
 
 
 def _prime_count_for_keysize(keysize):
@@ -47,41 +46,49 @@ def _first_n_primes(n):
     return primes
 
 
-def _get_candidate_prime(keysize):
+def _check_msb(value, msb_index):
+    """Ensure the top bit of the value is set."""
+    msb = value >> (msb_index - 1)
+    return msb == 1
+
+
+def _get_prime(keysize):
     """Generate a candidate prime based on formula (1) in section 2.1."""
+    candidate_prime = 0
+
+    while not _check_msb(candidate_prime, keysize // 2):
+        m = get_primorial(keysize)
+        m_bits = int(log(m, 2))
+
+        k_bits = (keysize // 2) - m_bits
+        a_bits = {
+            39: 62, 71: 134, 126: 255, 225: 434
+        }[_prime_count_for_keysize(keysize)]  # Table 1 - Naive BF # attempts gives order of group
+        k = getRandomNBitInteger(k_bits)
+        a = getRandomNBitInteger(a_bits)
+
+        candidate_prime = k * m + pow(e, a, m)
+
+    return candidate_prime
+
+
+def get_primorial(keysize):
     prime_count = _prime_count_for_keysize(keysize)
     primes = _first_n_primes(prime_count)
-    M = reduce(mul, primes)  # the primorial M in the paper
-    M_bits = int(log(M, 2)) + 1
-
-    k_bits = (keysize // 2) - M_bits
-    a_bits = {
-        39: 62, 71: 134, 126: 255, 225: 434
-    }[prime_count]  # Table 1 - Naive BF # attempts gives order of group
-    k = getRandomNBitInteger(k_bits)
-    a = getRandomNBitInteger(a_bits)
-
-    return k * M + pow(e, a, M)
-
-
-def _check_bits(prime, keysize):
-    """Ensure the top two bits of the prime are set."""
-    if prime == 0:
-        return False  # initial values of p, q can be skipped
-
-    bits = keysize // 2
-    top_two_bits = prime >> (bits - 2)
-    return top_two_bits == 0x3  # 0x3 = 11 in binary
+    return reduce(mul, primes)  # the primorial M in the paper
 
 
 def generate_vulnerable_key(keysize=1024):
     """Generate an RSA object vulnerable to the ROCA attack"""
-    q, p = 0, 0  # some non-prime values ...
+    p, q = 0, 0  # some non-prime values ...
+    n = p * q
 
-    while not (_check_bits(p, keysize) and isPrime(p)):
-        p = _get_candidate_prime(keysize)
-    while not (_check_bits(q, keysize) and isPrime(q)):
-        q = _get_candidate_prime(keysize)
+    while not _check_msb(n, keysize):
+        while not isPrime(p):
+            p = _get_prime(keysize)
+        while not isPrime(q):
+            q = _get_prime(keysize)
+        n = p * q
 
     # generate only the public key (N, e), the whole point is to recover d
     rsa = RSA.construct((p*q, e))
@@ -90,9 +97,8 @@ def generate_vulnerable_key(keysize=1024):
 
     # run it against the roca-detect check utility
     tmpfile = 'tmp.pub'
-    f = open(tmpfile, 'w')
-    f.write(ascii_armored_key)
-    f.close()
+    with open(tmpfile, 'w') as f:
+        f.write(ascii_armored_key)
     print(check_output(['roca-detect', tmpfile]))
     remove(tmpfile)
 
@@ -100,4 +106,4 @@ def generate_vulnerable_key(keysize=1024):
 
 
 if __name__ == '__main__':
-    generate_vulnerable_key()
+    generate_vulnerable_key(keysize=512)
