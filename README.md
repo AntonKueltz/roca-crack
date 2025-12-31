@@ -1,11 +1,17 @@
 # roca-crack
 A utility for cracking RSA keys with low entropy prime factors.
 
+## Setup
+
+```bash
+$ uv sync
+```
+
 ## Generating Bad Keys
 If you need a keypair to test the attack against you can generate one via:
 
 ```bash
-$ python roca-crack/keygen.py
+$ uv run keygen
 ```
 
 This will output an ascii-armored RSA public key and also run the [roca-detect](https://github.com/crocs-muni/roca)

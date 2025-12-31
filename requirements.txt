@@ -1,2 +1,0 @@
-pycryptodome>=3.9
-roca-detect>=1.2

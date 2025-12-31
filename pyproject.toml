@@ -1,0 +1,24 @@
+[project]
+name = "roca-crack"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "pycryptodome>=3.23.0",
+    "roca-detect>=1.2.12",
+]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.8.0",
+    "ruff>=0.14.10",
+    "ty>=0.0.8",
+]
+
+[build-system]
+requires = ["setuptools >= 80.9"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+keygen = "roca_crack.keygen:generate_vulnerable_key"
